@@ -1,0 +1,6 @@
+Cython
+fastai
+numpy
+pandas
+torch
+jupyter
