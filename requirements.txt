@@ -6,3 +6,4 @@ pandas
 torch
 jupyter
 sklearn
+jedi==0.17.2
