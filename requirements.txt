@@ -4,6 +4,7 @@ openml
 numpy
 pandas
 torch
+torchtext
 jupyter
 sklearn
 jedi==0.17.2
