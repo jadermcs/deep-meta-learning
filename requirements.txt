@@ -8,3 +8,4 @@ torchtext
 jupyter
 sklearn
 jedi==0.17.2
+category_encoders
