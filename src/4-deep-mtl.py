@@ -36,11 +36,8 @@ class BaseDataDataset(Dataset):
         if mode == 'ragression':
             target = torch.tensor(target).float()
         else:
-            target =
+            target = [torch.argmax(target)]
         return data, target
-
-
-# In[3]:
 
 
 class Encoder(nn.Module):
