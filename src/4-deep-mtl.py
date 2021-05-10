@@ -142,10 +142,10 @@ early_stop_callback = cb.early_stopping.EarlyStopping(
 )
 lr_monitor = cb.LearningRateMonitor(logging_interval='step')
 checkpoint_callback = cb.ModelCheckpoint(monitor='valid_loss')
-logger = TensorBoardLogger('logs/')
+wandb_logger = WandbLogger(name=f'AdamW-{batch_size}-{lr:.3}-{blocks}-{dropout}-{noutput}',project='deepmtl')
 
 
 model = AttentionMetaExtractor(ninp, noutput, nhead, nhid, lr, blocks, dropout=dropout)
-trainer = pl.Trainer(gpus=-1, logger=logger, max_epochs=100,
+trainer = pl.Trainer(gpus=-1, logger=wandb_logger, max_epochs=100,
                      callbacks=[early_stop_callback, lr_monitor, checkpoint_callback])
 trainer.fit(model, base_data_train, base_data_valid)
