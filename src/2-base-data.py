@@ -11,7 +11,7 @@ from fastprogress.fastprogress import master_bar, progress_bar
 from sklearn.utils import resample
 
 seed = 42
-#random.seed(seed)
+random.seed(seed)
 path = '../data/'
 
 os.makedirs('../samples_train', exist_ok=True)
