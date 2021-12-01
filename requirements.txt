@@ -3,7 +3,7 @@ Cython==0.29.22
 jedi==0.17.2
 jupyter==1.0.0
 matplotlib==3.3.4
-notebook==6.2.0
+notebook==6.4.1
 numpy==1.20.1
 openml==0.11.0
 pandas==1.2.2
