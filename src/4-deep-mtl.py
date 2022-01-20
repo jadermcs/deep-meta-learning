@@ -66,9 +66,6 @@ class Encoder(nn.Module):
         return src
 
 
-# In[4]:
-
-
 class AttentionMetaExtractor(pl.LightningModule):
 
     def __init__(self, ninp, noutput, nhead=5, nhid=256, lr=1e-3, nlayers=12, dropout=.25):
@@ -87,11 +84,12 @@ class AttentionMetaExtractor(pl.LightningModule):
         output = src
         for block in self.encoder:
             output = block(output)
-        output = torch.mean(output, dim=1)
+        embs = output
+        output = torch.mean(output[:,0], dim=1)
         output = self.dropout1(output)
         output = self.dropout2(self.activation(self.decoder(output)))
         output = self.activation(self.output(output))
-        return output
+        return output, embs
 
     def training_step(self, batch, batch_idx):
         x, y = batch
