@@ -99,7 +99,7 @@ def parse_args():
     parser.add_argument("--noutput", type=int, default=2, help="Number of outputs being regressed.")
     parser.add_argument("--nhid", type=int, default=512, help="Number of hidden representation vector.")
     parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate.")
-    parser.add_argument("--blocks", type=int, default=8, help="Number of decoder blocks.")
+    parser.add_argument("--blocks", type=int, default=12, help="Number of decoder blocks.")
     parser.add_argument("--droupout", type=float, default=.25, help="Learning rate.")
     parser.add_argument("--device", type=str, default="cuda", help="Device to train model.")
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs.")
@@ -162,3 +162,6 @@ def main():
             best_loss = mloss
             output_dir = f"model/best-{epoch}-{mloss:.5f}/"
             model.save_pretrained(output_dir)
+
+if __name__ == "__main__":
+    main()
