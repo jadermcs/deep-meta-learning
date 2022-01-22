@@ -1,7 +1,4 @@
-samples_valid/
-samples_train/
-notebook/lightning_logs/
-notebook/wandb/
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
