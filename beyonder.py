@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-import os
 import pandas as pd
 import numpy as np
 import copy
@@ -15,22 +14,11 @@ from typing import Optional, Any
 from torch.utils.data import DataLoader, Dataset
 
 
-wandb.init(project='DeepMetaLearning')
-
-
-# In[3]:
-
-
-col_number = 200
-
-
-# In[4]:
-
-
 class BaseDataDataset(Dataset):
-    def __init__(self, path):
+    def __init__(self, path, col_number=200):
         self.path = path
         self.files = np.array(os.listdir(path))
+        self.col_number = col_number
 
     def __len__(self):
         return len(self.files)
@@ -41,17 +29,14 @@ class BaseDataDataset(Dataset):
         name = self.files[idx]
         data = pd.read_parquet(self.path+name).drop(columns=["class"])
         data = data.values.T
-        data = F.pad(torch.tensor(data), (0, 0, 0, col_number-data.shape[0])).float()
+        data = F.pad(torch.tensor(data),
+                     (0, 0, 0, self.col_number-data.shape[0])).float()
         target = [float(x) for x in name.split('_')[-3:-1]]
         target = torch.tensor(target)
         return data, target
 
 
-# In[5]:
-
-
 class Encoder(nn.Module):
-
     def __init__(self, d_model, nhead, dim_feedforward=256, dropout=0.1):
         super(Encoder, self).__init__()
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
@@ -76,11 +61,7 @@ class Encoder(nn.Module):
         return src
 
 
-# In[6]:
-
-
 class AttentionMetaExtractor(nn.Module):
-
     def __init__(self, ninp, noutput, nhead=8, nhid=256, nlayers=12, dropout=.25):
         super(AttentionMetaExtractor, self).__init__()
         self.model_type = 'Transformer'
@@ -102,77 +83,82 @@ class AttentionMetaExtractor(nn.Module):
         return self.output(output)
 
 
-# In[7]:
+def parse_args():
+    """Parse command line arguments.
+    """
+    parser = argparse.ArgumentParser(description="Finetune a transformers "
+                                    "model on a causal language modeling task")
+    parser.add_argument("--meta_data", type=str, default="data.csv",
+                        help="File containing train and validation files")
+    parser.add_argument("--data_path", type=str, default="data/",
+                        help="A path to save model.")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed.")
+    parser.add_argument("--batch_size", type=int, default=64, help="Batch size.")
+    parser.add_argument("--ninp", type=int, default=256, help="Number of maximum rows in base data.")
+    parser.add_argument("--nhead", type=int, default=8, help="Number of attention heads.")
+    parser.add_argument("--noutput", type=int, default=2, help="Number of outputs being regressed.")
+    parser.add_argument("--nhid", type=int, default=512, help="Number of hidden representation vector.")
+    parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate.")
+    parser.add_argument("--blocks", type=int, default=8, help="Number of decoder blocks.")
+    parser.add_argument("--droupout", type=float, default=.25, help="Learning rate.")
+    parser.add_argument("--device", type=str, default="cuda", help="Device to train model.")
+    parser.add_argument("--epochs", type=int, default=100, help="Number of epochs.")
+    return parser.parse_args()
 
+def main():
+    """Training routing for the Beyonder Network.
+    """
+    args = parse_args()
+    wandb.init(project='DeepMetaLearning')
 
-batch_size = 64
+    base_data_train = DataLoader(BaseDataDataset("data/train/"),
+                                 batch_size=args.batch_size,
+                                 shuffle=True, num_workers=8)
+    base_data_valid = DataLoader(BaseDataDataset("data/valid/"),
+                                 batch_size=args.batch_size,
+                                 num_workers=8)
 
-base_data_train = DataLoader(BaseDataDataset("../samples_train/"), batch_size=batch_size,
-                             shuffle=True, num_workers=8)
-base_data_valid = DataLoader(BaseDataDataset("../samples_valid/"), batch_size=batch_size,
-                             num_workers=8)
+    total_steps = len(base_data_train)*args.epochs
 
+    model = AttentionMetaExtractor(args.ninp, args.noutput, args.nhead,
+                                   args.nhid, args.blocks, dropout=args.dropout)
+    model.to(args.device)
 
-# In[8]:
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate,
+                                  amsgrad=True)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=1e-3,
+                                                    total_steps=total_steps)
 
+    best_loss = math.inf
+    progress_bar = tqdm(range(total_steps))
+    for epoch in range(args.epochs):
+        model.train()
+        train_loss = []
+        for batch in base_data_train:
+            x, y = [tensor.to(args.device) for tensor in batch]
+            clf_tensor = torch.LongTensor([0]*x.shape[0]).to(args.device)
+            output = model(x, clf_tensor)
+            loss = F.mse_loss(output, y)
+            train_loss.append(loss.item())
+            loss.backward()
+            optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad()
+            progress_bar.update(1)
+        mloss = np.mean(train_loss)
+        wandb.log({"train/loss": mloss, "epoch": epoch})
 
-ninp = 256 # number of rows in base data
-nhead = 8
-noutput = 2 # number of algorithms accuracies being regressed
-nhid = 512
-learning_rate = 1e-4
-blocks = 8
-dropout = 0.25
-device = 'cuda'
-epochs = 100
-total_steps = len(base_data_train)*epochs
-
-
-# In[9]:
-
-
-model = AttentionMetaExtractor(ninp, noutput, nhead, nhid, blocks, dropout=dropout)
-model.to(device)
-
-optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, amsgrad=True)
-scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=1e-2, total_steps=total_steps)
-
-
-# In[10]:
-
-
-best_loss = math.inf
-
-progress_bar = tqdm(range(total_steps))
-for epoch in range(epochs):
-    model.train()
-    train_loss = []
-    for batch in base_data_train:
-        x, y = [tensor.to(device) for tensor in batch]
-        clf_tensor = torch.LongTensor([0]*x.shape[0]).to(device)
-        output = model(x, clf_tensor)
-        loss = F.mse_loss(output, y)
-        train_loss.append(loss.item())
-        loss.backward()
-        optimizer.step()
-        scheduler.step()
-        optimizer.zero_grad()
-        progress_bar.update(1)
-    mloss = np.mean(train_loss)
-    wandb.log({"train/loss": mloss, "epoch": epoch})
-
-    model.eval()
-    valid_loss = []
-    for batch in base_data_valid:
-        x, y = [tensor.to(device) for tensor in batch]
-        clf_tensor = torch.LongTensor([0]*x.shape[0]).to(device)
-        output = model(x, clf_tensor)
-        loss = F.mse_loss(output, y)
-        valid_loss.append(loss.item())
-    mloss = np.mean(valid_loss)
-    wandb.log({"valid/loss": mloss, "epoch": epoch})
-    if mloss < best_loss:
-        best_loss = mloss
-        output_dir = f"model/best-{epoch}-{mloss:.5f}/"
-        model.save_pretrained(output_dir)
-
+        model.eval()
+        valid_loss = []
+        for batch in base_data_valid:
+            x, y = [tensor.to(args.device) for tensor in batch]
+            clf_tensor = torch.LongTensor([0]*x.shape[0]).to(args.device)
+            output = model(x, clf_tensor)
+            loss = F.mse_loss(output, y)
+            valid_loss.append(loss.item())
+        mloss = np.mean(valid_loss)
+        wandb.log({"valid/loss": mloss, "epoch": epoch})
+        if mloss < best_loss:
+            best_loss = mloss
+            output_dir = f"model/best-{epoch}-{mloss:.5f}/"
+            model.save_pretrained(output_dir)
