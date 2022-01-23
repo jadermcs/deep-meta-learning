@@ -125,7 +125,7 @@ def main():
                                  batch_size=args.batch_size,
                                  num_workers=8)
 
-    total_steps = len(base_data_train)*args.epochs-1
+    total_steps = len(base_data_train)*args.epochs
 
     model = AttentionMetaExtractor(args.nrows, args.noutput, args.nhead,
                                    args.nhid, args.blocks, dropout=args.dropout)

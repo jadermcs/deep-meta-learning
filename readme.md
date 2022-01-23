@@ -27,3 +27,4 @@ python beyonder.py
 - selfsupervision for data imputation (like in TabNet)
 - finetune for best pre-processing pipeline
 - inspect attention plots(?)
+- evaluate a better padding mode for the transformer, maybe reflect?
