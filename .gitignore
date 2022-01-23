@@ -1,4 +1,6 @@
 data/
+model/
+wandb/
 *.parquet
 
 # Byte-compiled / optimized / DLL files
