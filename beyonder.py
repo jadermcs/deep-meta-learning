@@ -117,7 +117,7 @@ def main():
     wandb.init(project='DeepMetaLearning')
 
     base_data_train = DataLoader(BaseDataDataset("data/train/", args.nrows,
-                                                 args.cols),
+                                                 args.ncols),
                                  batch_size=args.batch_size,
                                  shuffle=True, num_workers=8)
     base_data_valid = DataLoader(BaseDataDataset("data/valid/", args.nrows,
