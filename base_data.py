@@ -41,23 +41,29 @@ def main():
     random.seed(args.seed)
     data_path = pathlib.Path(args.data_path)
     train_path = data_path/'train'
-    train_path.mkdir(exist_ok=True)
+    train_path.mkdir()
     valid_path = data_path/'valid'
-    valid_path.mkdir(exist_ok=True)
+    valid_path.mkdir()
     train_valid = pd.read_csv(args.meta_data)
     train_valid = train_valid[~train_valid.train].files.tolist()
 
     clf1 = DecisionTreeClassifier(random_state=args.seed)
     clf2 = KNeighborsClassifier()
 
+    dataset_stats = pd.DataFrame(columns=['number_of_rows', 'number_of_columns'],
+                                 dtype=int)
+
     files = list(data_path.glob("*.csv"))
-    progress_bar = tqdm(range(len(files)*args.aug_size), leave=False)
+    progress_bar = tqdm(range(len(files)*args.aug_size))
 
     for fname in files:
         data = pd.read_csv(fname).dropna()
         if data.shape[1] > 255:
             print(f"Skipping {fname.name}, to many columns")
             continue
+        dataset_stats = dataset_stats.append({
+            'number_of_rows': data.shape[0],
+            'number_of_columns': data.shape[1]}, ignore_index=True)
         majority_class = data["class"].value_counts().sort_values().index[-1]
         data["class"] = (data["class"] == majority_class).astype(int)
         xdata = data.drop(columns=["class"])
@@ -68,7 +74,7 @@ def main():
             xsample, ysample = resample(xdata, ydata,
                                         n_samples=random.randint(128, args.sample_size),
                                         random_state=args.seed+i, stratify=ydata)
-            kfold = KFold(n_splits=args.fold, shuffle=True, random_state=args.seed)
+            kfold = KFold(n_splits=args.fold, shuffle=True, random_state=args.seed+i)
             scores1 = []
             scores2 = []
             for train_idx, test_idx in kfold.split(xsample, ysample):
@@ -87,6 +93,11 @@ def main():
                                      f"{np.mean(scores2):.5f}_{i}.parquet")
             dataframe.to_parquet(save_path, index=False)
             progress_bar.update(1)
+
+    print(dataset_stats.describe())
+
+
+
 
 if __name__ == "__main__":
     main()
