@@ -6,19 +6,20 @@ import copy
 import torch
 import math
 import wandb
+import pathlib
 import argparse
 from tqdm import tqdm
 from torch import nn
-from torch.nn.utils.rnn import pad_sequence
 import torch.nn.functional as F
 from typing import Optional, Any
 from torch.utils.data import DataLoader, Dataset
 
 
 class BaseDataDataset(Dataset):
-    def __init__(self, path, col_number=200):
-        self.path = path
-        self.files = np.array(os.listdir(path))
+    def __init__(self, path, row_number=256, col_number=256):
+        self.path = pathlib.Path(path)
+        self.files = np.array(list(self.path.glob('*')))
+        self.row_number = row_number
         self.col_number = col_number
 
     def __len__(self):
@@ -28,11 +29,13 @@ class BaseDataDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         name = self.files[idx]
-        data = pd.read_parquet(self.path+name).drop(columns=["class"])
+        data = pd.read_parquet(name).drop(columns=["class"])
         data = data.values.T
-        data = F.pad(torch.tensor(data),
-                     (0, 0, 0, self.col_number-data.shape[0])).float()
-        target = [float(x) for x in name.split('_')[-3:-1]]
+        # pad rows and columns to match dimensions in the batch
+        pad_shape = (0, self.row_number-data.shape[1],
+                     0, self.col_number-data.shape[0])
+        data = F.pad(torch.tensor(data), pad_shape).float()
+        target = [float(x) for x in name.name.split('_')[-3:-1]]
         target = torch.tensor(target)
         return data, target
 
@@ -95,13 +98,14 @@ def parse_args():
                         help="A path to save model.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed.")
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size.")
-    parser.add_argument("--ninp", type=int, default=256, help="Number of maximum rows in base data.")
+    parser.add_argument("--nrows", type=int, default=256, help="Number of maximum rows in base data.")
+    parser.add_argument("--ncols", type=int, default=256, help="Number of maximum cols in base data.")
     parser.add_argument("--nhead", type=int, default=8, help="Number of attention heads.")
     parser.add_argument("--noutput", type=int, default=2, help="Number of outputs being regressed.")
     parser.add_argument("--nhid", type=int, default=512, help="Number of hidden representation vector.")
     parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate.")
     parser.add_argument("--blocks", type=int, default=12, help="Number of decoder blocks.")
-    parser.add_argument("--droupout", type=float, default=.25, help="Learning rate.")
+    parser.add_argument("--dropout", type=float, default=.1, help="Learning rate.")
     parser.add_argument("--device", type=str, default="cuda", help="Device to train model.")
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs.")
     return parser.parse_args()
@@ -112,16 +116,18 @@ def main():
     args = parse_args()
     wandb.init(project='DeepMetaLearning')
 
-    base_data_train = DataLoader(BaseDataDataset("data/train/"),
+    base_data_train = DataLoader(BaseDataDataset("data/train/", args.nrows,
+                                                 args.cols),
                                  batch_size=args.batch_size,
                                  shuffle=True, num_workers=8)
-    base_data_valid = DataLoader(BaseDataDataset("data/valid/"),
+    base_data_valid = DataLoader(BaseDataDataset("data/valid/", args.nrows,
+                                                 args.ncols),
                                  batch_size=args.batch_size,
                                  num_workers=8)
 
-    total_steps = len(base_data_train)*args.epochs
+    total_steps = len(base_data_train)*args.epochs-1
 
-    model = AttentionMetaExtractor(args.ninp, args.noutput, args.nhead,
+    model = AttentionMetaExtractor(args.nrows, args.noutput, args.nhead,
                                    args.nhid, args.blocks, dropout=args.dropout)
     model.to(args.device)
 
@@ -161,8 +167,10 @@ def main():
         wandb.log({"valid/loss": mloss, "epoch": epoch})
         if mloss < best_loss:
             best_loss = mloss
-            output_dir = f"model/best-{epoch}-{mloss:.5f}/"
-            model.save_pretrained(output_dir)
+            output_dir = pathlib.Path(f"model")
+            output_dir.mkdir(exist_ok=True)
+            torch.save(model.state_dict(),
+                       output_dir/f"best-{epoch}-{mloss:.5f}.pth")
 
 if __name__ == "__main__":
     main()

@@ -39,7 +39,7 @@ def main():
     for fname in tqdm(train_files):
         score_dt = fname.name.split("_")[-3]
         score_knn = fname.name.split("_")[-2]
-        df = pd.read_parquet(fname.as_posix())
+        df = pd.read_parquet(fname)
         X = df.drop(columns=["class"]).values
         # First evaluate only unsupervised features
         #y = df["class"].values
@@ -57,7 +57,7 @@ def main():
     for fname in tqdm(valid_files):
         score_dt = fname.name.split("_")[-3]
         score_knn = fname.name.split("_")[-2]
-        df = pd.read_parquet(fname.as_posix())
+        df = pd.read_parquet(fname)
         X = df.drop(columns=["class"]).values
         # First evaluate only unsupervised features
         #y = df["class"].values

@@ -54,7 +54,7 @@ def main():
     progress_bar = tqdm(range(len(files)*args.aug_size), leave=False)
 
     for fname in files:
-        data = pd.read_csv(fname.as_posix()).dropna()
+        data = pd.read_csv(fname).dropna()
         if data.shape[1] > 255:
             print(f"Skipping {fname.name}, to many columns")
             continue
@@ -85,7 +85,7 @@ def main():
             dataset_type = train_path if fname.name not in train_valid else valid_path
             save_path = dataset_type.joinpath(f"{fname.with_suffix('').name}_{np.mean(scores1):.5f}_"
                                      f"{np.mean(scores2):.5f}_{i}.parquet")
-            dataframe.to_parquet(save_path.as_posix(), index=False)
+            dataframe.to_parquet(save_path, index=False)
             progress_bar.update(1)
 
 if __name__ == "__main__":
