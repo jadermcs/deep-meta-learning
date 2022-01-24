@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
+import wandb
 import pathlib
 import argparse
 import warnings
@@ -7,9 +8,8 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from pymfe.mfe import MFE
-from fastprogress.fastprogress import master_bar, progress_bar
 from lightgbm import LGBMRegressor
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_squared_error
 
 def parse_args():
     """Parse command line arguments.
@@ -29,6 +29,7 @@ def main():
     """Extract meta-features with pyMFE and evaluate MSE with LightGBM.
     """
     args = parse_args()
+    wandb.init(project='DeepMetaLearning', name='classical', config=args)
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
     mfe = MFE(random_state=args.seed, groups=["statistical"])
@@ -81,7 +82,9 @@ def main():
 
     lg = LGBMRegressor(random_state=args.seed, objective='mse')
     lg.fit(xtrain, ytrain)
-    print(mean_absolute_error(ytest, lg.predict(xtest)))
+    mse = mean_squared_error(ytest, lg.predict(xtest))
+    print(mse)
+    wandb.log({"mse": mse})
 
 if __name__ == "__main__":
     main()

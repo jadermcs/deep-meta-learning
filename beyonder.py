@@ -13,6 +13,7 @@ from torch import nn
 import torch.nn.functional as F
 from typing import Optional, Any
 from torch.utils.data import DataLoader, Dataset
+from sklearn.metrics import mean_squared_error
 
 
 class BaseDataDataset(Dataset):
@@ -80,11 +81,12 @@ class AttentionMetaExtractor(nn.Module):
 
     def forward(self, src: torch.Tensor, clf:torch.Tensor) -> torch.Tensor:
         clf = self.embed(clf).unsqueeze(1)
-        output = torch.cat((clf, src), dim=1)
+        out = torch.cat((clf, src), dim=1)
         for block in self.encoder:
-            output = block(output)
-        output = self.decoder(self.dropout1(output[:,0]))
-        return self.output(output)
+            out = block(out)
+        embs = out[:,1:]
+        out = self.decoder(self.dropout1(out[:,0]))
+        return self.output(out), embs
 
 
 def parse_args():
@@ -114,7 +116,7 @@ def main():
     """Training routing for the Beyonder Network.
     """
     args = parse_args()
-    wandb.init(project='DeepMetaLearning')
+    wandb.init(project='DeepMetaLearning', name='beyonder', config=args)
 
     base_data_train = DataLoader(BaseDataDataset("data/train/", args.nrows,
                                                  args.ncols),
@@ -144,7 +146,7 @@ def main():
         for batch in base_data_train:
             x, y = [tensor.to(args.device) for tensor in batch]
             clf_tensor = torch.LongTensor([0]*x.shape[0]).to(args.device)
-            output = model(x, clf_tensor)
+            output, embs = model(x, clf_tensor)
             loss = F.mse_loss(output, y)
             train_loss.append(loss.item())
             loss.backward()
@@ -160,7 +162,7 @@ def main():
         for batch in base_data_valid:
             x, y = [tensor.to(args.device) for tensor in batch]
             clf_tensor = torch.LongTensor([0]*x.shape[0]).to(args.device)
-            output = model(x, clf_tensor)
+            output, _ = model(x, clf_tensor)
             loss = F.mse_loss(output, y)
             valid_loss.append(loss.item())
         mloss = np.mean(valid_loss)
@@ -169,8 +171,22 @@ def main():
             best_loss = mloss
             output_dir = pathlib.Path(f"model")
             output_dir.mkdir(exist_ok=True)
-            torch.save(model.state_dict(),
-                       output_dir/f"best-{epoch}-{mloss:.5f}.pth")
+            best_name = f"best-{epoch}-{mloss:.5f}.pth"
+            torch.save(model.state_dict(), output_dir/best_name)
+    model.load_state_dict(torch.load(output_dir/best_name))
+    model.eval()
+    ytrue = []
+    yhat = []
+    for batch in base_data_valid:
+        x, y = [tensor.to(args.device) for tensor in batch]
+        ytrue.append(y)
+        clf_tensor = torch.LongTensor([0]*x.shape[0]).to(args.device)
+        output, _ = model(x, clf_tensor)
+        yhat.append(output)
+    ytrue = torch.cat(ytrue)[:,0].tolist()
+    yhat = torch.cat(yhat)[:,0].tolist()
+    mse = mean_squared_error(ytrue, yhat)
+    wandb.log({"mse": mse})
 
 if __name__ == "__main__":
     main()
