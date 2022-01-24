@@ -1,9 +1,6 @@
 category-encoders==2.2.2
 Cython==0.29.22
-jedi==0.17.2
-jupyter==1.0.0
 matplotlib==3.3.4
-notebook==6.4.1
 numpy==1.21
 pandas==1.2.2
 pymfe==0.4.1

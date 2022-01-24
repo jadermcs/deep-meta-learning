@@ -8,6 +8,7 @@ import math
 import wandb
 import pathlib
 import argparse
+import datetime
 from tqdm import tqdm
 from torch import nn
 import torch.nn.functional as F
@@ -116,7 +117,8 @@ def main():
     """Training routing for the Beyonder Network.
     """
     args = parse_args()
-    wandb.init(project='DeepMetaLearning', name='beyonder', config=args)
+    time = datetime.datetime.now().isoformat()
+    wandb.init(project='DeepMetaLearning', name=f'beyonder-{time}', config=args)
 
     base_data_train = DataLoader(BaseDataDataset("data/train/", args.nrows,
                                                  args.ncols),

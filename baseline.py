@@ -83,7 +83,6 @@ def main():
     lg = LGBMRegressor(random_state=args.seed, objective='mse')
     lg.fit(xtrain, ytrain)
     mse = mean_squared_error(ytest, lg.predict(xtest))
-    print(mse)
     wandb.log({"mse": mse})
 
 if __name__ == "__main__":
