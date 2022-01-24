@@ -119,7 +119,8 @@ def main():
     """
     args = parse_args()
     time = datetime.datetime.now().isoformat()
-    wandb.init(project='DeepMetaLearning', name=f'beyonder-{time}', config=args)
+    exp_name = f'beyonder-{args.blocks}-{args.nhead}-{args.nhid}'
+    wandb.init(project='DeepMetaLearning', name=exp_name, config=args)
 
     base_data_train = DataLoader(BaseDataDataset("data/train/", args.nrows,
                                                  args.ncols),
