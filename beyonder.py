@@ -195,7 +195,7 @@ def main():
         output, _ = model(x)
         yhat += output[:,0].tolist()
     mse = mean_squared_error(ytrue, yhat)
-    wandb.log({"mse": mse})
+    wandb.log({"mse_score_dt": mse})
 
 if __name__ == "__main__":
     main()
