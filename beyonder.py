@@ -76,7 +76,7 @@ class AttentionMetaExtractor(nn.Module):
         self.encoder = nn.ModuleList([copy.deepcopy(encoder_block) for _ in range(nlayers)])
         self.decoder = nn.Linear(ninp, nhid)
         self.regressor = nn.Linear(nhid, noutput)
-        self.activation = F.gelu
+        self.activation = F.relu
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
@@ -84,14 +84,14 @@ class AttentionMetaExtractor(nn.Module):
         clf = torch.LongTensor([0]*src.shape[0]).to(src.device)
         clf = self.embed(clf).unsqueeze(1)
         if msk is not None:
-            src *= ~msk
+            msk = torch.zeros_like(src).masked_fill(msk, -1e6)
+            src += msk
         out = torch.cat((clf, src), dim=1)
         for block in self.encoder:
             out = block(out)
         if msk is not None:
-            embs = out[:,1:] * msk
-        else:
-            embs = out[:,1:]
+            out[:,1:] *= msk
+        embs = out[:,1:]
         out = self.decoder(self.activation(self.dropout1(out[:,0])))
         out = self.regressor(self.activation(self.dropout2(out)))
         return out, embs
@@ -155,7 +155,7 @@ def main():
         train_loss = []
         for batch in base_data_train:
             x, y = [tensor.to(args.device) for tensor in batch]
-            x_mask = (torch.rand_like(x) < .25).to(args.device)
+            x_mask = (torch.rand_like(x) < args.dropout).to(args.device)
             output, embs = model(x, x_mask)
             loss = F.mse_loss(output, y) + F.mse_loss(embs, x*x_mask)
             train_loss.append(loss.item())
@@ -171,7 +171,7 @@ def main():
         valid_loss = []
         for batch in base_data_valid:
             x, y = [tensor.to(args.device) for tensor in batch]
-            output, embs = model(x)
+            output, _ = model(x)
             loss = F.mse_loss(output, y)
             valid_loss.append(loss.item())
         mloss = np.mean(valid_loss)
