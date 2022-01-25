@@ -37,9 +37,8 @@ def main():
     train_df = []
     train_path = pathlib.Path(args.data_path)/'train'
     train_files = list(train_path.glob('*.parquet'))
+    scores_data = pd.read_csv("augment_data.csv", index_col="filename")
     for fname in tqdm(train_files):
-        score_dt = fname.name.split("_")[-3]
-        score_knn = fname.name.split("_")[-2]
         df = pd.read_parquet(fname)
         X = df.drop(columns=["class"]).values
         # First evaluate only unsupervised features
@@ -47,8 +46,8 @@ def main():
         mfe.fit(X)
         ft = mfe.extract()
         ft = dict(zip(*ft))
-        ft["score_dt"] = score_dt
-        ft["score_knn"] = score_knn
+        for clf in scores_data.columns:
+            ft[f"score_{clf}"] = scores_data.loc[fname.name, clf]
         train_df.append(ft)
 
     print("Extracting meta-features for validation files")
@@ -56,8 +55,6 @@ def main():
     valid_path = pathlib.Path(args.data_path)/'valid'
     valid_files = list(valid_path.glob('*.parquet'))
     for fname in tqdm(valid_files):
-        score_dt = fname.name.split("_")[-3]
-        score_knn = fname.name.split("_")[-2]
         df = pd.read_parquet(fname)
         X = df.drop(columns=["class"]).values
         # First evaluate only unsupervised features
@@ -65,8 +62,8 @@ def main():
         mfe.fit(X)
         ft = mfe.extract()
         ft = dict(zip(*ft))
-        ft["score_dt"] = score_dt
-        ft["score_knn"] = score_knn
+        for clf in scores_data.columns:
+            ft[f"score_{clf}"] = scores_data.loc[fname.name, clf]
         valid_df.append(ft)
 
     train_df = pd.DataFrame(train_df)
@@ -75,15 +72,16 @@ def main():
         train_df.to_csv("mfe.train.csv", index=False)
         train_df.to_csv("mfe.test.csv", index=False)
 
-    xtrain = train_df.drop(columns=["score_dt", "score_knn"]).values
-    ytrain = train_df["score_dt"].values
-    xtest = valid_df.drop(columns=["score_dt", "score_knn"]).values
-    ytest = valid_df["score_dt"].values
-
-    lg = LGBMRegressor(random_state=args.seed, objective='mse')
-    lg.fit(xtrain, ytrain)
-    mse = mean_squared_error(ytest, lg.predict(xtest))
-    wandb.log({"mse": mse})
+    drop_columns = [f"score_{clf}" for clf in scores_data.columns]
+    xtrain = train_df.drop(columns=drop_columns).values
+    xtest = valid_df.drop(columns=drop_columns).values
+    for score in drop_columns:
+        ytrain = train_df[score].values
+        ytest = valid_df[score].values
+        lg = LGBMRegressor(random_state=args.seed, objective='mse')
+        lg.fit(xtrain, ytrain)
+        mse = mean_squared_error(ytest, lg.predict(xtest))
+        wandb.log({f"mse_{score}": mse})
 
 if __name__ == "__main__":
     main()

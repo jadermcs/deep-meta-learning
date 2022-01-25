@@ -18,9 +18,11 @@ from sklearn.metrics import mean_squared_error
 
 
 class BaseDataDataset(Dataset):
-    def __init__(self, path, row_number=256, col_number=256):
+    def __init__(self, path, row_number=256, col_number=256,
+                 scores_path="augment_data.csv"):
         self.path = pathlib.Path(path)
         self.files = np.array(list(self.path.glob('*')))
+        self.scores = pd.read_csv(scores_path, index_col="filename")
         self.row_number = row_number
         self.col_number = col_number
 
@@ -37,8 +39,8 @@ class BaseDataDataset(Dataset):
         pad_shape = (0, self.row_number-data.shape[1],
                      0, self.col_number-data.shape[0])
         data = F.pad(torch.tensor(data), pad_shape).float()
-        target = [float(x) for x in name.name.split('_')[-3:-1]]
-        target = torch.tensor(target)
+        target = self.scores.loc[name.name].values
+        target = torch.tensor(target).float()
         return data, target
 
 
@@ -124,6 +126,7 @@ def main():
     """Training routing for the Beyonder Network.
     """
     args = parse_args()
+    torch.manual_seed(0)
     time = datetime.datetime.now().isoformat()
     exp_name = f'beyonder-{args.blocks}-{args.nhead}-{args.nhid}'
     wandb.init(project='DeepMetaLearning', name=exp_name, config=args)
@@ -180,7 +183,7 @@ def main():
             best_loss = mloss
             output_dir = pathlib.Path(f"model")
             output_dir.mkdir(exist_ok=True)
-            best_name = f"best-{epoch}-{mloss:.5f}.pth"
+            best_name = f"best-{exp_name}-{epoch}-{mloss:.5f}.pth"
             torch.save(model.state_dict(), output_dir/best_name)
     model.load_state_dict(torch.load(output_dir/best_name))
     model.eval()

@@ -2,6 +2,7 @@ data/
 model/
 wandb/
 *.parquet
+*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

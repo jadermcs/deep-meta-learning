@@ -41,20 +41,23 @@ def main():
     random.seed(args.seed)
     data_path = pathlib.Path(args.data_path)
     train_path = data_path/'train'
-    train_path.mkdir()
+    train_path.mkdir(exist_ok=True)
     valid_path = data_path/'valid'
-    valid_path.mkdir()
+    valid_path.mkdir(exist_ok=True)
     train_valid = pd.read_csv(args.meta_data)
     train_valid = train_valid[~train_valid.train].files.tolist()
 
-    clf1 = DecisionTreeClassifier(random_state=args.seed)
-    clf2 = KNeighborsClassifier()
+    classifiers = {
+        "dt": DecisionTreeClassifier(random_state=args.seed),
+        "knn": KNeighborsClassifier()
+    }
 
     dataset_stats = pd.DataFrame(columns=['number_of_rows', 'number_of_columns'],
                                  dtype=int)
 
     files = list(data_path.glob("*.csv"))
     progress_bar = tqdm(range(len(files)*args.aug_size))
+    score_data = pd.DataFrame(columns=['filename']+list(classifiers.keys()))
 
     for fname in files:
         data = pd.read_csv(fname).dropna()
@@ -75,25 +78,29 @@ def main():
                                         n_samples=random.randint(128, args.sample_size),
                                         random_state=args.seed+i, stratify=ydata)
             kfold = KFold(n_splits=args.fold, shuffle=True, random_state=args.seed+i)
-            scores1 = []
-            scores2 = []
+            scores = {}
             for train_idx, test_idx in kfold.split(xsample, ysample):
                 xtrain, y_train = xsample[train_idx], ysample[train_idx]
                 xtest, y_test = xsample[test_idx], ysample[test_idx]
-                clf1.fit(xtrain, y_train)
-                scores1.append(f1_score(y_test, clf1.predict(xtest), average='weighted'))
-                clf2.fit(xtrain, y_train)
-                scores2.append(f1_score(y_test, clf2.predict(xtest), average='weighted'))
+                for name in classifiers:
+                    clf = classifiers[name]
+                    clf.fit(xtrain, y_train)
+                    if name not in scores: scores[name] = []
+                    scores[name].append(f1_score(y_test, clf.predict(xtest), average='weighted'))
             dataframex = pd.DataFrame(xsample, columns=xcolnames)
             dataframex = dataframex[random.sample(dataframex.columns.to_list(),
                                                   len(dataframex.columns))]
             dataframe = pd.concat([dataframex, pd.DataFrame({'class': ysample})], axis=1)
             dataset_type = train_path if fname.name not in train_valid else valid_path
-            save_path = dataset_type.joinpath(f"{fname.with_suffix('').name}_{np.mean(scores1):.5f}_"
-                                     f"{np.mean(scores2):.5f}_{i}.parquet")
+            save_path = dataset_type.joinpath(f"{fname.with_suffix('').name}_{i}.parquet")
+            score_data = score_data.append({
+                'filename':save_path.name,
+                **{name:np.mean(scores[name]) for name in scores}
+            }, ignore_index=True)
             dataframe.to_parquet(save_path, index=False)
             progress_bar.update(1)
 
+    score_data.to_csv("augment_data.csv", index=False)
     print(dataset_stats.describe())
 
 if __name__ == "__main__":
