@@ -74,8 +74,8 @@ class AttentionMetaExtractor(nn.Module):
         encoder_block = Encoder(ninp, nhead, nhid)
         self.embed = nn.Embedding(1, ninp)
         self.encoder = nn.ModuleList([copy.deepcopy(encoder_block) for _ in range(nlayers)])
-        self.decoder = nn.Linear(ninp, nhid)
-        self.regressor = nn.Linear(nhid, noutput)
+        self.decoder = nn.Linear(ninp, nhid*2)
+        self.regressor = nn.Linear(nhid*2, noutput)
         self.activation = F.relu
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
