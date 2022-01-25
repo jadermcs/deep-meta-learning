@@ -55,7 +55,7 @@ class Encoder(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
-        self.activation = F.relu
+        self.activation = F.gelu
 
     def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         src2 = self.self_attn(src, src, src, attn_mask=src_mask)[0]
@@ -76,16 +76,22 @@ class AttentionMetaExtractor(nn.Module):
         self.encoder = nn.ModuleList([copy.deepcopy(encoder_block) for _ in range(nlayers)])
         self.decoder = nn.Linear(ninp, nhid)
         self.regressor = nn.Linear(nhid, noutput)
-        self.activation = F.relu
+        self.activation = F.gelu
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
-    def forward(self, src: torch.Tensor, clf:torch.Tensor) -> torch.Tensor:
+    def forward(self, src: torch.Tensor, msk: Optional[torch.Tensor] = None) -> torch.Tensor:
+        clf = torch.LongTensor([0]*src.shape[0]).to(src.device)
         clf = self.embed(clf).unsqueeze(1)
+        if msk is not None:
+            src *= ~msk
         out = torch.cat((clf, src), dim=1)
         for block in self.encoder:
             out = block(out)
-        embs = out[:,1:]
+        if msk is not None:
+            embs = out[:,1:] * msk
+        else:
+            embs = out[:,1:]
         out = self.decoder(self.activation(self.dropout1(out[:,0])))
         out = self.regressor(self.activation(self.dropout2(out)))
         return out, embs
@@ -149,9 +155,9 @@ def main():
         train_loss = []
         for batch in base_data_train:
             x, y = [tensor.to(args.device) for tensor in batch]
-            clf_tensor = torch.LongTensor([0]*x.shape[0]).to(args.device)
-            output, embs = model(x, clf_tensor)
-            loss = F.mse_loss(output, y)
+            x_mask = (torch.rand_like(x) < .25).to(args.device)
+            output, embs = model(x, x_mask)
+            loss = F.mse_loss(output, y) + F.mse_loss(embs, x*x_mask)
             train_loss.append(loss.item())
             loss.backward()
             optimizer.step()
@@ -165,8 +171,7 @@ def main():
         valid_loss = []
         for batch in base_data_valid:
             x, y = [tensor.to(args.device) for tensor in batch]
-            clf_tensor = torch.LongTensor([0]*x.shape[0]).to(args.device)
-            output, _ = model(x, clf_tensor)
+            output, embs = model(x)
             loss = F.mse_loss(output, y)
             valid_loss.append(loss.item())
         mloss = np.mean(valid_loss)
@@ -184,8 +189,7 @@ def main():
     for batch in base_data_valid:
         x, y = [tensor.to(args.device) for tensor in batch]
         ytrue += y[:,0].tolist()
-        clf_tensor = torch.LongTensor([0]*x.shape[0]).to(args.device)
-        output, _ = model(x, clf_tensor)
+        output, _ = model(x)
         yhat += output[:,0].tolist()
     mse = mean_squared_error(ytrue, yhat)
     wandb.log({"mse": mse})
