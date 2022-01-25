@@ -28,3 +28,4 @@ python beyonder.py
 - finetune for best pre-processing pipeline
 - inspect attention plots(?)
 - evaluate a better padding mode for the transformer, maybe reflect?
+- compare baseline also with a dummy regressor (always predict the mean of the training set)
