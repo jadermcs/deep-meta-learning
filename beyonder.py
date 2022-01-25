@@ -183,12 +183,10 @@ def main():
     yhat = []
     for batch in base_data_valid:
         x, y = [tensor.to(args.device) for tensor in batch]
-        ytrue.append(y[:,0].tolist())
+        ytrue += y[:,0].tolist()
         clf_tensor = torch.LongTensor([0]*x.shape[0]).to(args.device)
         output, _ = model(x, clf_tensor)
-        yhat.append(output[:,0].tolist())
-    ytrue = torch.cat(ytrue)
-    yhat = torch.cat(yhat)
+        yhat += output[:,0].tolist()
     mse = mean_squared_error(ytrue, yhat)
     wandb.log({"mse": mse})
 
