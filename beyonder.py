@@ -113,7 +113,7 @@ def parse_args():
     parser.add_argument("--ncols", type=int, default=256, help="Number of maximum cols in base data.")
     parser.add_argument("--nhead", type=int, default=8, help="Number of attention heads.")
     parser.add_argument("--noutput", type=int, default=3, help="Number of outputs being regressed.")
-    parser.add_argument("--nhid", type=int, default=512, help="Number of hidden representation vector.")
+    parser.add_argument("--nhid", type=int, default=256, help="Number of hidden representation vector.")
     parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate.")
     parser.add_argument("--blocks", type=int, default=12, help="Number of decoder blocks.")
     parser.add_argument("--dropout", type=float, default=.1, help="Learning rate.")
