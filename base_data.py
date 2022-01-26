@@ -52,7 +52,7 @@ def main():
     classifiers = {
         "dt": DecisionTreeClassifier(random_state=args.seed),
         "knn": KNeighborsClassifier(),
-        "lg": LogisticRegression(),
+        "lg": LogisticRegression(solver='liblinear'),
         "svm": SVC()
     }
 
