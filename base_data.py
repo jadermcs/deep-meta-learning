@@ -9,6 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear import LogisticRegression
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import robust_scale
 from sklearn.metrics import f1_score
@@ -49,7 +50,8 @@ def main():
 
     classifiers = {
         "dt": DecisionTreeClassifier(random_state=args.seed),
-        "knn": KNeighborsClassifier()
+        "knn": KNeighborsClassifier(),
+        "lg": LogisticRegression()
     }
 
     dataset_stats = pd.DataFrame(columns=['number_of_rows', 'number_of_columns'],

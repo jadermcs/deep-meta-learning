@@ -86,8 +86,7 @@ class AttentionMetaExtractor(nn.Module):
         clf = torch.LongTensor([0]*src.shape[0]).to(src.device)
         clf = self.embed(clf).unsqueeze(1)
         if msk is not None:
-            msk = torch.zeros_like(src).masked_fill(msk, -1e6)
-            src += msk
+            src.masked_fill_(msk, 0.)
         out = torch.cat((clf, src), dim=1)
         for block in self.encoder:
             out = block(out)
@@ -113,7 +112,7 @@ def parse_args():
     parser.add_argument("--nrows", type=int, default=256, help="Number of maximum rows in base data.")
     parser.add_argument("--ncols", type=int, default=256, help="Number of maximum cols in base data.")
     parser.add_argument("--nhead", type=int, default=8, help="Number of attention heads.")
-    parser.add_argument("--noutput", type=int, default=2, help="Number of outputs being regressed.")
+    parser.add_argument("--noutput", type=int, default=3, help="Number of outputs being regressed.")
     parser.add_argument("--nhid", type=int, default=512, help="Number of hidden representation vector.")
     parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate.")
     parser.add_argument("--blocks", type=int, default=12, help="Number of decoder blocks.")

@@ -10,6 +10,7 @@ from tqdm import tqdm
 from pymfe.mfe import MFE
 from lightgbm import LGBMRegressor
 from sklearn.metrics import mean_squared_error
+from sklearn.dummy import DummyRegressor
 
 def parse_args():
     """Parse command line arguments.
@@ -81,6 +82,14 @@ def main():
         lg = LGBMRegressor(random_state=args.seed, objective='mse')
         lg.fit(xtrain, ytrain)
         mse = mean_squared_error(ytest, lg.predict(xtest))
+        wandb.log({f"mse_{score}": mse})
+    wandb.run.name = "dummy"
+    for score in drop_columns:
+        ytrain = train_df[score].values
+        ytest = valid_df[score].values
+        dr = DummyRegressor()
+        dr.fit(xtrain, ytrain)
+        mse = mean_squared_error(ytest, dr.predict(xtest))
         wandb.log({f"mse_{score}": mse})
 
 if __name__ == "__main__":
