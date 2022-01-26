@@ -127,7 +127,7 @@ def main():
     args = parse_args()
     torch.manual_seed(0)
     time = datetime.datetime.now().isoformat()
-    exp_name = f'beyonder-{args.blocks}-{args.nhead}-{args.nhid}'
+    exp_name = f'beyonder-{args.blocks}-{args.nhead}-{args.nhid}-{args.noutput}reg'
     wandb.init(project='DeepMetaLearning', name=exp_name, config=args)
 
     base_data_train = DataLoader(BaseDataDataset("data/train/", args.nrows,
