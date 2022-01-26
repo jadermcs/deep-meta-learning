@@ -11,7 +11,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import robust_scale
 from sklearn.metrics import f1_score
 from sklearn.utils import resample
@@ -81,7 +81,8 @@ def main():
             xsample, ysample = resample(xdata, ydata,
                                         n_samples=random.randint(128, args.sample_size),
                                         random_state=args.seed+i, stratify=ydata)
-            kfold = KFold(n_splits=args.fold, shuffle=True, random_state=args.seed+i)
+            kfold = StratifiedKFold(n_splits=args.fold, shuffle=True,
+                                    random_state=args.seed+i)
             scores = {}
             for train_idx, test_idx in kfold.split(xsample, ysample):
                 xtrain, y_train = xsample[train_idx], ysample[train_idx]
