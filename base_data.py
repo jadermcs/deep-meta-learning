@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.neural_network import MLPClassifier
+from sklearn.naive_bayes import GaussianNB
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import robust_scale
 from sklearn.metrics import f1_score
@@ -51,7 +51,7 @@ def main():
     classifiers = {
         "dt": DecisionTreeClassifier(random_state=args.seed),
         "knn": KNeighborsClassifier(),
-        "nn": MLPClassifier(max_iter=1000)
+        "nb": GaussianNB(),
     }
 
     dataset_stats = pd.DataFrame(columns=['number_of_rows', 'number_of_columns'],
