@@ -86,7 +86,8 @@ class AttentionMetaExtractor(nn.Module):
         clf = torch.LongTensor([0]*src.shape[0]).to(src.device)
         clf = self.embed(clf).unsqueeze(1)
         if msk is not None:
-            src.masked_fill_(msk, -1e6)
+            msk = torch.zeros_like(src).masked_fill(msk, -1e6)
+            src += msk
         out = torch.cat((clf, src), dim=1)
         for block in self.encoder:
             out = block(out)
