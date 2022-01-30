@@ -112,7 +112,7 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size.")
     parser.add_argument("--nrows", type=int, default=256, help="Number of maximum rows in base data.")
     parser.add_argument("--ncols", type=int, default=256, help="Number of maximum cols in base data.")
-    parser.add_argument("--nhead", type=int, default=8, help="Number of attention heads.")
+    parser.add_argument("--nhead", type=int, default=6, help="Number of attention heads.")
     parser.add_argument("--noutput", type=int, default=3, help="Number of outputs being regressed.")
     parser.add_argument("--nhid", type=int, default=256, help="Number of hidden representation vector.")
     parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate.")
@@ -160,7 +160,7 @@ def main():
             x, y = [tensor.to(args.device) for tensor in batch]
             x_mask = (torch.rand_like(x) < args.dropout).to(args.device)
             output, embs = model(x, x_mask)
-            loss = F.mse_loss(output, y) + F.mse_loss(embs, x*x_mask)
+            loss = F.mse_loss(output, y) + F.mse_loss(embs*x_mask, x*x_mask)
             train_loss.append(loss.item())
             loss.backward()
             optimizer.step()
