@@ -91,8 +91,6 @@ class AttentionMetaExtractor(nn.Module):
         out = torch.cat((clf, src), dim=1)
         for block in self.encoder:
             out = block(out)
-        if msk is not None:
-            out[:,1:] *= msk
         embs = out[:,1:]
         out = self.decoder(self.activation(self.dropout1(out[:,0])))
         out = self.regressor(self.activation(self.dropout2(out)))
@@ -160,7 +158,7 @@ def main():
             x, y = [tensor.to(args.device) for tensor in batch]
             x_mask = (torch.rand_like(x) < args.dropout).to(args.device)
             output, embs = model(x, x_mask)
-            loss = F.mse_loss(output, y) + F.mse_loss(embs, x*x_mask)
+            loss = F.mse_loss(output, y) + F.mse_loss(embs*x_mask, x*x_mask)
             train_loss.append(loss.item())
             loss.backward()
             optimizer.step()
