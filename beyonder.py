@@ -86,8 +86,8 @@ class AttentionMetaExtractor(nn.Module):
         clf = torch.LongTensor([0]*src.shape[0]).to(src.device)
         clf = self.embed(clf).unsqueeze(1)
         if msk is not None:
-            msk = torch.zeros_like(src).masked_fill(msk, -1e6)
-            src += msk
+            msk_neg = torch.zeros_like(src).masked_fill(msk, -1e6)
+            src += msk_neg
         out = torch.cat((clf, src), dim=1)
         for block in self.encoder:
             out = block(out)
@@ -115,7 +115,7 @@ def parse_args():
     parser.add_argument("--nhead", type=int, default=8, help="Number of attention heads.")
     parser.add_argument("--noutput", type=int, default=3, help="Number of outputs being regressed.")
     parser.add_argument("--nhid", type=int, default=256, help="Number of hidden representation vector.")
-    parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate.")
+    parser.add_argument("--learning_rate", type=float, default=1e-5, help="Learning rate.")
     parser.add_argument("--blocks", type=int, default=12, help="Number of decoder blocks.")
     parser.add_argument("--dropout", type=float, default=.1, help="Learning rate.")
     parser.add_argument("--device", type=str, default="cuda", help="Device to train model.")
@@ -160,7 +160,7 @@ def main():
             x, y = [tensor.to(args.device) for tensor in batch]
             x_mask = (torch.rand_like(x) < args.dropout).to(args.device)
             output, embs = model(x, x_mask)
-            loss = F.mse_loss(output, y) + F.mse_loss(embs*x_mask, x*x_mask)
+            loss = F.mse_loss(output, y) + F.mse_loss(embs, x*x_mask)
             train_loss.append(loss.item())
             loss.backward()
             optimizer.step()
