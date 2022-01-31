@@ -51,7 +51,6 @@ def main():
     classifiers = {
         "dt": DecisionTreeClassifier(random_state=args.seed),
         "knn": KNeighborsClassifier(),
-        "nb": GaussianNB(),
     }
 
     dataset_stats = pd.DataFrame(columns=['number_of_rows', 'number_of_columns'],
