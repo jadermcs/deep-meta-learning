@@ -152,7 +152,7 @@ def main():
         train_loss = []
         for batch in base_data_train:
             x, y = [tensor.to(args.device) for tensor in batch]
-            output, embs = model(x)
+            output = model(x)
             loss = F.mse_loss(output, y)
             train_loss.append(loss.item())
             loss.backward()
@@ -167,7 +167,7 @@ def main():
         valid_loss = []
         for batch in base_data_valid:
             x, y = [tensor.to(args.device) for tensor in batch]
-            output, _ = model(x)
+            output = model(x)
             loss = F.mse_loss(output, y)
             valid_loss.append(loss.item())
         mloss = np.mean(valid_loss)
@@ -185,7 +185,7 @@ def main():
     for batch in base_data_valid:
         x, y = [tensor.to(args.device) for tensor in batch]
         ytrue += y[:,0].tolist()
-        output, _ = model(x)
+        output = model(x)
         yhat += output[:,0].tolist()
     mse = mean_squared_error(ytrue, yhat)
     wandb.log({"mse_score_dt": mse})
