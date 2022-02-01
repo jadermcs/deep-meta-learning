@@ -185,7 +185,7 @@ def main():
     for batch in base_data_valid:
         x, y = [tensor.to(args.device) for tensor in batch]
         ytrue += y[:,0].tolist()
-        output, _ = model(x)
+        output = model(x)
         yhat += output[:,0].tolist()
     mse = mean_squared_error(ytrue, yhat)
     wandb.log({"mse_score_dt": mse})
