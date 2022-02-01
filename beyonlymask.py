@@ -79,7 +79,7 @@ class AttentionMetaExtractor(nn.Module):
     def forward(self, src: torch.Tensor, msk: Optional[torch.Tensor] = None) -> torch.Tensor:
         if msk is not None:
             msk_neg = torch.zeros_like(src).masked_fill(msk, -1e6)
-            src += mask_neg
+            src += msk_neg
         out = src
         for block in self.encoder:
             out = block(out)
