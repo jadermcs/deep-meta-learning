@@ -146,7 +146,7 @@ def main():
         for batch in base_data_train:
             x, y = [tensor.to(args.device) for tensor in batch]
             x_mask = (torch.rand_like(x) < args.dropout).to(args.device)
-            output, embs = model(x, x_mask)
+            embs = model(x, x_mask)
             loss = F.mse_loss(x, embs)
             train_loss.append(loss.item())
             loss.backward()
@@ -161,7 +161,7 @@ def main():
         valid_loss = []
         for batch in base_data_valid:
             x, y = [tensor.to(args.device) for tensor in batch]
-            output, embs = model(x)
+            embs = model(x)
             loss = F.mse_loss(x, embs)
             valid_loss.append(loss.item())
         mloss = np.mean(valid_loss)
