@@ -81,13 +81,13 @@ class AttentionMetaExtractor(nn.Module):
         self.activation = F.relu
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
-        self.max_p = nn.AdaptiveMaxPool2d(nhid)
+        self.max_p = nn.AdaptiveMaxPool2d((1, None))
 
     def forward(self, src: torch.Tensor) -> torch.Tensor:
         out = src
         for block in self.encoder:
             out = block(out)
-        out = self.max_p(out)
+        out = self.max_p(out)[:, 0]
         out = self.decoder(self.activation(self.dropout1(out)))
         out = self.regressor(self.activation(self.dropout2(out)))
         return out
