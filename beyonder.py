@@ -84,10 +84,10 @@ class AttentionMetaExtractor(nn.Module):
 
     def forward(self, src: torch.Tensor, msk: Optional[torch.Tensor] = None) -> torch.Tensor:
         if msk is not None:
-            # msk_neg = torch.zeros_like(src).masked_fill(msk, -1e6)
-            # src += msk_neg
-            msk_neg = torch.ones_like(src).masked_fill(msk, 0)
-            src *= msk_neg
+            msk_neg = torch.zeros_like(src).masked_fill(msk, -1e6)
+            src += msk_neg
+            # msk_neg = torch.ones_like(src).masked_fill(msk, 0)
+            # src *= msk_neg
         clf = torch.LongTensor([0]*src.shape[0]).to(src.device)
         clf = self.embed(clf).unsqueeze(1)
         out = torch.cat((clf, src), dim=1)
