@@ -81,22 +81,16 @@ class AttentionMetaExtractor(nn.Module):
         self.activation = F.relu
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
+        self.max_p = nn.AdaptiveMaxPool2d(nhid)
 
-    def forward(self, src: torch.Tensor, msk: Optional[torch.Tensor] = None) -> torch.Tensor:
-        if msk is not None:
-            # msk_neg = torch.zeros_like(src).masked_fill(msk, -1e6)
-            # src += msk_neg
-            msk_neg = torch.ones_like(src).masked_fill(msk, 0)
-            src *= msk_neg
-        clf = torch.LongTensor([0]*src.shape[0]).to(src.device)
-        clf = self.embed(clf).unsqueeze(1)
-        out = torch.cat((clf, src), dim=1)
+    def forward(self, src: torch.Tensor) -> torch.Tensor:
+        out = src
         for block in self.encoder:
             out = block(out)
-        embs = out[:,1:]
-        out = self.decoder(self.activation(self.dropout1(out[:,0])))
+        out = self.max_p(out)
+        out = self.decoder(self.activation(self.dropout1(out)))
         out = self.regressor(self.activation(self.dropout2(out)))
-        return out, embs
+        return out
 
 
 def parse_args():
@@ -128,7 +122,7 @@ def main():
     args = parse_args()
     torch.manual_seed(0)
     time = datetime.datetime.now().isoformat()
-    exp_name = f'beyonder-{args.blocks}-{args.nhead}-{args.nhid}-{args.noutput}reg'
+    exp_name = f'beymax-{args.blocks}-{args.nhead}-{args.nhid}-{args.noutput}reg'
     wandb.init(project='DeepMetaLearning', name=exp_name, config=args)
 
     base_data_train = DataLoader(BaseDataDataset("data/train/", args.nrows,
@@ -158,9 +152,8 @@ def main():
         train_loss = []
         for batch in base_data_train:
             x, y = [tensor.to(args.device) for tensor in batch]
-            x_mask = (torch.rand_like(x) < args.dropout).to(args.device)
-            output, embs = model(x, x_mask)
-            loss = F.mse_loss(output, y) + F.mse_loss(embs, x)
+            output = model(x)
+            loss = F.mse_loss(output, y)
             train_loss.append(loss.item())
             loss.backward()
             optimizer.step()
@@ -174,7 +167,7 @@ def main():
         valid_loss = []
         for batch in base_data_valid:
             x, y = [tensor.to(args.device) for tensor in batch]
-            output, _ = model(x)
+            output = model(x)
             loss = F.mse_loss(output, y)
             valid_loss.append(loss.item())
         mloss = np.mean(valid_loss)
