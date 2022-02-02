@@ -37,8 +37,7 @@ class BaseDataDataset(Dataset):
         pad_shape = (0, self.row_number-data.shape[1],
                      0, self.col_number-data.shape[0])
         data = F.pad(torch.tensor(data), pad_shape).float()
-        target = self.scores.loc[name.name].values
-        target = np.argmax(target)
+        target = self.scores.loc[name.name].argmax()
         return data, target
 
 
