@@ -52,7 +52,7 @@ def main():
     xtest = valid_df.drop(columns=drop_columns).values
     ytrain = train_df[drop_columns]
     ytrue = valid_df[drop_columns]
-    dr = DummyRegressor()
+    dr = DummyClassifier()
     dr.fit(xtrain, ytrain)
     yhat = dr.predict(xtest)
 
