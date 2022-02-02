@@ -111,7 +111,7 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size.")
     parser.add_argument("--nrows", type=int, default=256, help="Number of maximum rows in base data.")
     parser.add_argument("--ncols", type=int, default=256, help="Number of maximum cols in base data.")
-    parser.add_argument("--nhead", type=int, default=16, help="Number of attention heads.")
+    parser.add_argument("--nhead", type=int, default=8, help="Number of attention heads.")
     parser.add_argument("--noutput", type=int, default=3, help="Number of outputs being regressed.")
     parser.add_argument("--nhid", type=int, default=256, help="Number of hidden representation vector.")
     parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate.")
@@ -193,7 +193,7 @@ def main():
         output, _ = model(x)
         yhat += output[:,0].tolist()
     mse = metrics.f1_score(ytrue, yhat)
-    wandb.log({"mse_score_dt": mse})
+    wandb.log({"f1_dt": mse})
 
 if __name__ == "__main__":
     main()
