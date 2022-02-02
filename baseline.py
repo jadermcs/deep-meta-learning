@@ -32,7 +32,7 @@ def main():
     wandb.init(project='DeepMetaLearning', name='classical', config=args)
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
-    mfe = MFE(random_state=args.seed, groups=['statistical'])
+    mfe = MFE(random_state=args.seed)
     print("Extracting meta-features for train files")
     train_df = []
     train_path = pathlib.Path(args.data_path)/'train'
