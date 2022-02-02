@@ -64,7 +64,7 @@ def main():
     for fname in files:
         data = pd.read_csv(fname).dropna()
         if data.shape[1] > 255:
-            print(f"Skipping {fname.name}, to many columns")
+            print(f"Skipping {fname.name}, too many columns")
             continue
         dataset_stats = dataset_stats.append({
             'number_of_rows': data.shape[0],

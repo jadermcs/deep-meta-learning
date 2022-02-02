@@ -12,7 +12,7 @@ from torch import nn
 import torch.nn.functional as F
 from typing import Optional, Any
 from torch.utils.data import DataLoader, Dataset
-from sklearn.metrics import mean_squared_error
+from sklearn import metrics
 
 
 class BaseDataDataset(Dataset):
@@ -38,7 +38,7 @@ class BaseDataDataset(Dataset):
                      0, self.col_number-data.shape[0])
         data = F.pad(torch.tensor(data), pad_shape).float()
         target = self.scores.loc[name.name].values
-        target = torch.tensor(target).float()
+        target = np.argmax(target)
         return data, target
 
 
@@ -98,7 +98,7 @@ def parse_args():
     parser.add_argument("--nrows", type=int, default=256, help="Number of maximum rows in base data.")
     parser.add_argument("--ncols", type=int, default=256, help="Number of maximum cols in base data.")
     parser.add_argument("--nhead", type=int, default=16, help="Number of attention heads.")
-    parser.add_argument("--noutput", type=int, default=2, help="Number of outputs being regressed.")
+    parser.add_argument("--noutput", type=int, default=3, help="Number of outputs being regressed.")
     parser.add_argument("--nhid", type=int, default=256, help="Number of hidden representation vector.")
     parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate.")
     parser.add_argument("--blocks", type=int, default=12, help="Number of decoder blocks.")
