@@ -8,8 +8,8 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from pymfe.mfe import MFE
-from lightgbm import LGBMRegressor
-from sklearn.metrics import mean_squared_error
+from lightgbm import LGBMClassifier
+from sklearn import metrics
 
 def parse_args():
     """Parse command line arguments.
@@ -32,7 +32,7 @@ def main():
     wandb.init(project='DeepMetaLearning', name='classical', config=args)
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
-    mfe = MFE(random_state=args.seed, groups=["statistical"])
+    mfe = MFE(random_state=args.seed, groups=['statistical'])
     print("Extracting meta-features for train files")
     train_df = []
     train_path = pathlib.Path(args.data_path)/'train'
@@ -46,8 +46,7 @@ def main():
         mfe.fit(X)
         ft = mfe.extract()
         ft = dict(zip(*ft))
-        for clf in scores_data.columns:
-            ft[f"score_{clf}"] = scores_data.loc[fname.name, clf]
+        ft["best_clf"] = scores_data.loc[fname.name].argmax()
         train_df.append(ft)
 
     print("Extracting meta-features for validation files")
@@ -62,8 +61,7 @@ def main():
         mfe.fit(X)
         ft = mfe.extract()
         ft = dict(zip(*ft))
-        for clf in scores_data.columns:
-            ft[f"score_{clf}"] = scores_data.loc[fname.name, clf]
+        ft["best_clf"] = scores_data.loc[fname.name].argmax()
         valid_df.append(ft)
 
     train_df = pd.DataFrame(train_df)
@@ -72,16 +70,19 @@ def main():
         train_df.to_csv("mfe.train.csv", index=False)
         train_df.to_csv("mfe.test.csv", index=False)
 
-    drop_columns = [f"score_{clf}" for clf in scores_data.columns]
+    drop_columns = ["best_clf"]
     xtrain = train_df.drop(columns=drop_columns).values
     xtest = valid_df.drop(columns=drop_columns).values
-    for score in drop_columns:
-        ytrain = train_df[score].values
-        ytest = valid_df[score].values
-        lg = LGBMRegressor(random_state=args.seed, objective='mse')
-        lg.fit(xtrain, ytrain)
-        mse = mean_squared_error(ytest, lg.predict(xtest))
-        wandb.log({f"mse_{score}": mse})
+    ytrain = train_df[drop_columns]
+    ytrue = valid_df[drop_columns]
+    lg = LGBMClassifier(random_state=args.seed, objective='multiclass')
+    lg.fit(xtrain, ytrain)
+    yhat = lg.predict(xtest)
+
+    recall = metrics.recall_score(ytrue, yhat, average="micro")
+    precis = metrics.precision_score(ytrue, yhat, average="micro")
+    wandb.log({"recall": recall})
+    wandb.log({"precision": precis})
 
 if __name__ == "__main__":
     main()

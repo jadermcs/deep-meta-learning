@@ -183,11 +183,13 @@ def main():
     yhat = []
     for batch in base_data_valid:
         x, y = [tensor.to(args.device) for tensor in batch]
-        ytrue += y[:,0].tolist()
-        output = model(x)
-        yhat += output[:,0].tolist()
-    mse = metrics.f1_score(ytrue, yhat)
-    wandb.log({"f1_dt": mse})
+        ytrue += y.tolist()
+        output, _ = model(x)
+        yhat += output.argmax(dim=1).tolist()
+    recall = metrics.recall_score(ytrue, yhat, average="micro")
+    precis = metrics.precision_score(ytrue, yhat, average="micro")
+    wandb.log({"recall": recall})
+    wandb.log({"precision": precis})
 
 if __name__ == "__main__":
     main()

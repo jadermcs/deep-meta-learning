@@ -8,9 +8,8 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from pymfe.mfe import MFE
-from lightgbm import LGBMRegressor
-from sklearn.metrics import mean_squared_error
-from sklearn.dummy import DummyRegressor
+from sklearn import metrics
+from sklearn.dummy import DummyClassifier
 
 def parse_args():
     """Parse command line arguments.
@@ -34,8 +33,7 @@ def main():
     scores_data = pd.read_csv("augment_data.csv", index_col="filename")
     for fname in tqdm(train_files):
         ft = {"x": 1}
-        for clf in scores_data.columns:
-            ft[f"score_{clf}"] = scores_data.loc[fname.name, clf]
+        ft["best_clf"] = scores_data.loc[fname.name].argmax()
         train_df.append(ft)
 
     valid_df = []
@@ -43,23 +41,25 @@ def main():
     valid_files = list(valid_path.glob('*.parquet'))
     for fname in tqdm(valid_files):
         ft = {"x": 1}
-        for clf in scores_data.columns:
-            ft[f"score_{clf}"] = scores_data.loc[fname.name, clf]
+        ft["best_clf"] = scores_data.loc[fname.name].argmax()
         valid_df.append(ft)
 
     train_df = pd.DataFrame(train_df)
     valid_df = pd.DataFrame(valid_df)
 
-    drop_columns = [f"score_{clf}" for clf in scores_data.columns]
+    drop_columns = ["best_clf"]
     xtrain = train_df.drop(columns=drop_columns).values
     xtest = valid_df.drop(columns=drop_columns).values
-    for score in drop_columns:
-        ytrain = train_df[score].values
-        ytest = valid_df[score].values
-        dr = DummyRegressor()
-        dr.fit(xtrain, ytrain)
-        mse = mean_squared_error(ytest, dr.predict(xtest))
-        wandb.log({f"mse_{score}": mse})
+    ytrain = train_df[drop_columns]
+    ytrue = valid_df[drop_columns]
+    dr = DummyRegressor()
+    dr.fit(xtrain, ytrain)
+    yhat = dr.predict(xtest)
+
+    recall = metrics.recall_score(ytrue, yhat, average="micro")
+    precis = metrics.precision_score(ytrue, yhat, average="micro")
+    wandb.log({"recall": recall})
+    wandb.log({"precision": precis})
 
 if __name__ == "__main__":
     main()
