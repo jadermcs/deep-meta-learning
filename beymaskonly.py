@@ -4,11 +4,9 @@ import pandas as pd
 import numpy as np
 import copy
 import torch
-import math
 import wandb
 import pathlib
 import argparse
-import datetime
 from tqdm import tqdm
 from torch import nn
 import torch.nn.functional as F
@@ -114,7 +112,6 @@ def main():
     """
     args = parse_args()
     torch.manual_seed(0)
-    time = datetime.datetime.now().isoformat()
     exp_name = f'maskonly-{args.blocks}-{args.nhead}-{args.nhid}-{args.noutput}reg'
     wandb.init(project='DeepMetaLearning', name=exp_name, config=args)
 
@@ -138,7 +135,7 @@ def main():
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=1e-3,
                                                     total_steps=total_steps)
 
-    best_loss = math.inf
+    best_loss = float("inf")
     progress_bar = tqdm(range(total_steps))
     for epoch in range(args.epochs):
         model.train()
@@ -147,7 +144,7 @@ def main():
             x, y = [tensor.to(args.device) for tensor in batch]
             x_mask = (torch.rand_like(x) < args.dropout).to(args.device)
             embs = model(x, x_mask)
-            loss = F.mse_loss(x, embs)
+            loss = F.mse_loss(embs*x_mask, x*x_mask)
             train_loss.append(loss.item())
             loss.backward()
             optimizer.step()
@@ -161,8 +158,9 @@ def main():
         valid_loss = []
         for batch in base_data_valid:
             x, y = [tensor.to(args.device) for tensor in batch]
-            embs = model(x)
-            loss = F.mse_loss(x, embs)
+            x_mask = (torch.rand_like(x) < args.dropout).to(args.device)
+            embs = model(x, x_mask)
+            loss = F.mse_loss(embs*x_mask, x*x_mask)
             valid_loss.append(loss.item())
         mloss = np.mean(valid_loss)
         wandb.log({"valid/loss": mloss, "epoch": epoch})

@@ -4,17 +4,15 @@ import pandas as pd
 import numpy as np
 import copy
 import torch
-import math
 import wandb
 import pathlib
 import argparse
-import datetime
 from tqdm import tqdm
 from torch import nn
 import torch.nn.functional as F
 from typing import Optional, Any
 from torch.utils.data import DataLoader, Dataset
-from sklearn.metrics import mean_squared_error
+from sklearn import metrics
 
 
 class BaseDataDataset(Dataset):
@@ -40,7 +38,7 @@ class BaseDataDataset(Dataset):
                      0, self.col_number-data.shape[0])
         data = F.pad(torch.tensor(data), pad_shape).float()
         target = self.scores.loc[name.name].values
-        target = torch.tensor(target).float()
+        target = np.argmax(target)
         return data, target
 
 
@@ -77,10 +75,11 @@ class AttentionMetaExtractor(nn.Module):
         self.embed = nn.Embedding(1, ninp)
         self.encoder = nn.ModuleList([copy.deepcopy(encoder_block) for _ in range(nlayers)])
         self.decoder = nn.Linear(ninp, nhid*2)
-        self.regressor = nn.Linear(nhid*2, noutput)
+        self.classifier = nn.Linear(nhid*2, noutput)
         self.activation = F.relu
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
+        self.soft = F.softmax
 
     def forward(self, src: torch.Tensor, msk: Optional[torch.Tensor] = None) -> torch.Tensor:
         clf = torch.LongTensor([0]*src.shape[0]).to(src.device)
@@ -89,7 +88,8 @@ class AttentionMetaExtractor(nn.Module):
         for block in self.encoder:
             out = block(out)
         out = self.decoder(self.activation(self.dropout1(out[:,0])))
-        out = self.regressor(self.activation(self.dropout2(out)))
+        out = self.classifier(self.activation(self.dropout2(out)))
+        out = self.soft(out, dim=1)
         return out
 
 
@@ -121,8 +121,7 @@ def main():
     """
     args = parse_args()
     torch.manual_seed(0)
-    time = datetime.datetime.now().isoformat()
-    exp_name = f'regression-{args.blocks}-{args.nhead}-{args.nhid}-{args.noutput}reg'
+    exp_name = f'classifier-{args.blocks}-{args.nhead}-{args.nhid}-{args.noutput}reg'
     wandb.init(project='DeepMetaLearning', name=exp_name, config=args)
 
     base_data_train = DataLoader(BaseDataDataset("data/train/", args.nrows,
@@ -145,7 +144,7 @@ def main():
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=1e-3,
                                                     total_steps=total_steps)
 
-    best_loss = math.inf
+    best_loss = float("inf")
     progress_bar = tqdm(range(total_steps))
     for epoch in range(args.epochs):
         model.train()
@@ -153,7 +152,7 @@ def main():
         for batch in base_data_train:
             x, y = [tensor.to(args.device) for tensor in batch]
             output = model(x)
-            loss = F.mse_loss(output, y)
+            loss = F.cross_entropy(output, y)
             train_loss.append(loss.item())
             loss.backward()
             optimizer.step()
@@ -168,7 +167,7 @@ def main():
         for batch in base_data_valid:
             x, y = [tensor.to(args.device) for tensor in batch]
             output = model(x)
-            loss = F.mse_loss(output, y)
+            loss = F.cross_entropy(output, y)
             valid_loss.append(loss.item())
         mloss = np.mean(valid_loss)
         wandb.log({"valid/loss": mloss, "epoch": epoch})
@@ -187,7 +186,7 @@ def main():
         ytrue += y[:,0].tolist()
         output = model(x)
         yhat += output[:,0].tolist()
-    mse = mean_squared_error(ytrue, yhat)
+    mse = metrics.f1_score(ytrue, yhat)
     wandb.log({"mse_score_dt": mse})
 
 if __name__ == "__main__":

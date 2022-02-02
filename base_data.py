@@ -51,6 +51,7 @@ def main():
     classifiers = {
         "dt": DecisionTreeClassifier(random_state=args.seed),
         "knn": KNeighborsClassifier(),
+        "nb": GaussianNB(),
     }
 
     dataset_stats = pd.DataFrame(columns=['number_of_rows', 'number_of_columns'],
@@ -75,8 +76,7 @@ def main():
         xdata = robust_scale(xdata.values)
         ydata = data["class"].values
         for i in range(args.aug_size):
-            xsample, ysample = resample(xdata, ydata,
-                                        n_samples=random.randint(128, args.sample_size),
+            xsample, ysample = resample(xdata, ydata, n_samples=args.sample_size,
                                         random_state=args.seed+i, stratify=ydata)
             kfold = KFold(n_splits=args.fold, shuffle=True,
                                     random_state=args.seed+i)
