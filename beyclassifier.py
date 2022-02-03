@@ -183,7 +183,7 @@ def main():
     for batch in base_data_valid:
         x, y = [tensor.to(args.device) for tensor in batch]
         ytrue += y.tolist()
-        output, _ = model(x)
+        output = model(x)
         yhat += output.argmax(dim=1).tolist()
     recall = metrics.recall_score(ytrue, yhat, average="micro")
     precis = metrics.precision_score(ytrue, yhat, average="micro")
