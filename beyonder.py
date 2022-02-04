@@ -57,8 +57,9 @@ class Encoder(nn.Module):
         self.activation = F.gelu
 
     def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        src2 = self.self_attn(src, src, src, attn_mask=src_mask)[0]
-        src = src + self.dropout1(src2)
+        src2 = self.self_attn(src, src, src)[0]
+        masked_src = src.masked_fill(src_mask, .0)
+        src = masked_src + self.dropout1(src2)
         src = self.norm1(src)
         src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
         src = src + self.dropout2(src2)
@@ -80,16 +81,16 @@ class AttentionMetaExtractor(nn.Module):
         self.dropout2 = nn.Dropout(dropout)
         self.soft = F.softmax
 
-    def forward(self, src: torch.Tensor, msk: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         if msk is not None:
-            # src = src.masked_fill(msk, -1e6)
-            msk_neg = torch.zeros_like(src).masked_fill(msk, -1e6)
+            msk_neg = torch.zeros_like(src).masked_fill(src_mask, float("-inf"))
             src += msk_neg
         clf = torch.LongTensor([0]*src.shape[0]).to(src.device)
         clf = self.embed(clf).unsqueeze(1)
         out = torch.cat((clf, src), dim=1)
+        src_mask = torch.cat((torch.zeros_like(clf), src_mask), dim=1)
         for block in self.encoder:
-            out = block(out)
+            out = block(out, src_mask)
         embs = out[:,1:]
         out = self.decoder(self.activation(self.dropout1(out[:,0])))
         out = self.classifier(self.activation(self.dropout2(out)))
