@@ -58,10 +58,7 @@ class Encoder(nn.Module):
 
     def forward(self, src: torch.Tensor,
                 src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        signal = src
-        if src_mask is not None:
-            signal = signal.masked_fill(src_mask, float("-inf")).softmax(dim=-1)
-        src2 = self.self_attn(signal, signal, signal)[0]
+        src2 = self.self_attn(src, src, src)[0]
         if src_mask is not None:
             src = src.masked_fill(src_mask, .0)
         src = src + self.dropout1(src2)
