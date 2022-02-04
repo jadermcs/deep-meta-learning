@@ -82,13 +82,13 @@ class AttentionMetaExtractor(nn.Module):
         self.soft = F.softmax
 
     def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        if msk is not None:
-            msk_neg = torch.zeros_like(src).masked_fill(src_mask, float("-inf"))
-            src += msk_neg
         clf = torch.LongTensor([0]*src.shape[0]).to(src.device)
         clf = self.embed(clf).unsqueeze(1)
+        if src_mask is not None:
+            msk_neg = torch.zeros_like(src).masked_fill(src_mask, float("-inf"))
+            src += msk_neg
+            src_mask = torch.cat((torch.zeros_like(clf), src_mask), dim=1)
         out = torch.cat((clf, src), dim=1)
-        src_mask = torch.cat((torch.zeros_like(clf), src_mask), dim=1)
         for block in self.encoder:
             out = block(out, src_mask)
         embs = out[:,1:]
