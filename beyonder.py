@@ -45,12 +45,11 @@ class Encoder(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward=256, dropout=0.1):
         super(Encoder, self).__init__()
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.linear1 = nn.Linear(d_model, dim_feedforward)
-        self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_feedforward, d_model)
 
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
+        self.linear1 = nn.Linear(d_model, dim_feedforward)
+        self.linear2 = nn.Linear(dim_feedforward, d_model)
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
@@ -60,12 +59,11 @@ class Encoder(nn.Module):
                 src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         src2 = self.self_attn(src, src, src)[0]
         if src_mask is not None:
-            src = src.masked_fill(src_mask, .0)
-        src = src + self.dropout1(src2)
-        src = self.norm1(src)
-        src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
+            src2 = self.norm1(src2)
+            src = src + src2 * src_mask
+        src2 = self.linear2(self.dropout1(self.activation(self.linear1(src))))
+        src2 = self.norm2(src2)
         src = src + self.dropout2(src2)
-        src = self.norm2(src)
         return src
 
 
