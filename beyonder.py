@@ -56,8 +56,12 @@ class Encoder(nn.Module):
 
         self.activation = F.gelu
 
-    def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        src2 = self.self_attn(src, src, src)[0]
+    def forward(self, src: torch.Tensor,
+                src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        signal = src
+        if src_mask is not None:
+            signal = signal.masked_fill(src_mask, float("-inf")).softmax(dim=1)
+        src2 = self.self_attn(signal, signal, signal)[0]
         if src_mask is not None:
             src = src.masked_fill(src_mask, .0)
         src = src + self.dropout1(src2)
@@ -86,8 +90,6 @@ class AttentionMetaExtractor(nn.Module):
         clf = torch.LongTensor([0]*src.shape[0]).to(src.device)
         clf = self.embed(clf).unsqueeze(1)
         if src_mask is not None:
-            msk_neg = torch.zeros_like(src).masked_fill(src_mask, float("-inf"))
-            src += msk_neg
             dummy = torch.zeros_like(clf, dtype=bool)
             src_mask = torch.cat((dummy, src_mask), dim=1)
         out = torch.cat((clf, src), dim=1)
