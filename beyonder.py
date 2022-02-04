@@ -56,14 +56,13 @@ class Encoder(nn.Module):
         self.activation = F.gelu
 
     def forward(self, src: torch.Tensor,
-                src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+                src_mask: torch.Tensor) -> torch.Tensor:
         src2 = self.self_attn(src, src, src)[0]
-        if src_mask is not None:
-            src2 = self.norm1(src2)
-            src = src + src2 * src_mask
+        src2 = self.norm1(src2)
+        src = src + src2 * src_mask
         src2 = self.linear2(self.dropout1(self.activation(self.linear1(src))))
         src2 = self.norm2(src2)
-        src = src + self.dropout2(src2)
+        src = src + self.dropout2(src2) * src_mask
         return src
 
 
@@ -84,9 +83,11 @@ class AttentionMetaExtractor(nn.Module):
     def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         clf = torch.LongTensor([0]*src.shape[0]).to(src.device)
         clf = self.embed(clf).unsqueeze(1)
+        dummy = torch.ones_like(clf, dtype=bool)
         if src_mask is not None:
-            dummy = torch.zeros_like(clf, dtype=bool)
             src_mask = torch.cat((dummy, src_mask), dim=1)
+        else:
+            src_mask = torch.cat((dummy, torch.zeros_like(src)), dim=1)
         out = torch.cat((clf, src), dim=1)
         for block in self.encoder:
             out = block(out, src_mask)
