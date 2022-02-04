@@ -60,7 +60,7 @@ class Encoder(nn.Module):
                 src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         signal = src
         if src_mask is not None:
-            signal = signal.masked_fill(src_mask, float("-inf")).softmax(dim=1)
+            signal = signal.masked_fill(src_mask, float("-inf")).softmax(dim=-1)
         src2 = self.self_attn(signal, signal, signal)[0]
         if src_mask is not None:
             src = src.masked_fill(src_mask, .0)
@@ -81,7 +81,7 @@ class AttentionMetaExtractor(nn.Module):
         self.encoder = nn.ModuleList([copy.deepcopy(encoder_block) for _ in range(nlayers)])
         self.decoder = nn.Linear(ninp, nhid*2)
         self.classifier = nn.Linear(nhid*2, noutput)
-        self.activation = F.relu
+        self.activation = F.gelu
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
         self.soft = F.softmax
