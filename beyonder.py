@@ -58,8 +58,9 @@ class Encoder(nn.Module):
 
     def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         src2 = self.self_attn(src, src, src)[0]
-        masked_src = src.masked_fill(src_mask, .0)
-        src = masked_src + self.dropout1(src2)
+        if src_mask is not None:
+            src = src.masked_fill(src_mask, .0)
+        src = src + self.dropout1(src2)
         src = self.norm1(src)
         src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
         src = src + self.dropout2(src2)
@@ -87,7 +88,8 @@ class AttentionMetaExtractor(nn.Module):
         if src_mask is not None:
             msk_neg = torch.zeros_like(src).masked_fill(src_mask, float("-inf"))
             src += msk_neg
-            src_mask = torch.cat((torch.zeros_like(clf), src_mask), dim=1)
+            dummy = torch.zeros_like(clf, dtype=bool)
+            src_mask = torch.cat((dummy, src_mask), dim=1)
         out = torch.cat((clf, src), dim=1)
         for block in self.encoder:
             out = block(out, src_mask)
